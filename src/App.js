@@ -79,33 +79,68 @@ function UserSelect({ onSelect }) {
   );
 }
 
+const SCHEDULE_SLOT_COUNT = 3;
+function emptySchedule() {
+  return {
+    morning: Array.from({ length: SCHEDULE_SLOT_COUNT }, () => ({ time: "", activity: "" })),
+    evening: Array.from({ length: SCHEDULE_SLOT_COUNT }, () => ({ time: "", activity: "" })),
+  };
+}
+
 function PlanTab({ user }) {
   const key = `plan_${user}`;
   const [date, setDate] = useState(today());
   const [tasks, setTasks] = useState(Array(TASK_COUNT).fill(""));
-  const [schedule, setSchedule] = useState([{ time: "Morning", activity: "" }, { time: "Afternoon", activity: "" }]);
+  const [extraTasks, setExtraTasks] = useState([]);
+  const [schedule, setSchedule] = useState(emptySchedule());
   const [intention, setIntention] = useState("");
   const [saved, setSaved] = useState(false);
+  const [saving, setSaving] = useState(false);
   const goals = lsGet(`goals_${user}`) || [];
 
   useEffect(() => {
     const p = lsGet(key);
-    if (p) { setDate(p.date || today()); setTasks(p.tasks || Array(TASK_COUNT).fill("")); setSchedule(p.schedule || []); setIntention(p.intention || ""); setSaved(true); }
+    if (p) {
+      setDate(p.date || today());
+      setTasks(p.tasks || Array(TASK_COUNT).fill(""));
+      setExtraTasks(p.extraTasks || []);
+      setSchedule(p.schedule && p.schedule.morning && p.schedule.evening ? p.schedule : emptySchedule());
+      setIntention(p.intention || "");
+      setSaved(true);
+    }
   }, [user, key]);
 
-  function save() {
+  async function save() {
     const filled = tasks.filter(t => t.trim());
     if (!filled.length) return alert("Add at least one task.");
-    const plan = { date, tasks, schedule, intention };
+    const plan = { date, tasks, extraTasks, schedule, intention };
     lsSet(key, plan);
     setSaved(true);
+    setSaving(true);
+
+    const allTasksText = [...tasks, ...extraTasks].filter(t => t.trim()).join(" | ");
+    const scheduleText = [
+      ...schedule.morning.map(b => `Morning ${b.time}: ${b.activity}`),
+      ...schedule.evening.map(b => `Afternoon/Evening ${b.time}: ${b.activity}`),
+    ].filter(line => line.split(": ")[1]?.trim()).join(" | ");
+
+    const row = {
+      type: "plan", user, date,
+      tasks: allTasksText,
+      schedule: scheduleText,
+      intention,
+      timestamp: new Date().toISOString()
+    };
+    await fetch(SHEETS_URL + "?data=" + encodeURIComponent(JSON.stringify(row)), { method: "GET", mode: "no-cors" }).catch(() => {});
+    setSaving(false);
     alert("Plan saved!");
   }
 
   function clear() {
     lsDel(key);
     setTasks(Array(TASK_COUNT).fill(""));
-    setSchedule([{ time: "Morning", activity: "" }, { time: "Afternoon", activity: "" }]);
+    setExtraTasks([]);
+    setSchedule(emptySchedule());
     setIntention("");
     setDate(today());
     setSaved(false);
@@ -132,23 +167,44 @@ function PlanTab({ user }) {
         </div>
       ))}
 
-      <Divider />
-      <Label>Rough schedule (optional)</Label>
-      {schedule.map((block, i) => (
+      {extraTasks.map((t, i) => (
         <div key={i} style={{ display: "flex", gap: 8, marginBottom: 8, alignItems: "center" }}>
-          <input value={block.time} onChange={e => { const n = [...schedule]; n[i] = { ...n[i], time: e.target.value }; setSchedule(n); }} placeholder="Time" style={{ ...inputStyle, width: 110, minWidth: 110 }} />
-          <input value={block.activity} onChange={e => { const n = [...schedule]; n[i] = { ...n[i], activity: e.target.value }; setSchedule(n); }} placeholder="What you plan to do" style={inputStyle} />
-          <button onClick={() => setSchedule(schedule.filter((_, j) => j !== i))} style={{ background: "none", border: "none", cursor: "pointer", color: "#aaa", fontSize: 20, padding: "4px 6px" }}>×</button>
+          <span style={{ fontSize: 13, color: "#aaa", minWidth: 18 }}>{TASK_COUNT + i + 1}.</span>
+          <input
+            value={t}
+            onChange={e => { const n = [...extraTasks]; n[i] = e.target.value; setExtraTasks(n); }}
+            placeholder="Additional task"
+            style={inputStyle}
+          />
+          <button onClick={() => setExtraTasks(extraTasks.filter((_, j) => j !== i))} style={{ background: "none", border: "none", cursor: "pointer", color: "#aaa", fontSize: 20, padding: "4px 6px" }}>×</button>
         </div>
       ))}
-      <button onClick={() => setSchedule([...schedule, { time: "", activity: "" }])} style={secondaryBtn}>+ add block</button>
+      <button onClick={() => setExtraTasks([...extraTasks, ""])} style={secondaryBtn}>+ add task</button>
+
+      <Divider />
+      <Label>Schedule (optional)</Label>
+      <Hint style={{ marginBottom: 8 }}>Morning</Hint>
+      {schedule.morning.map((block, i) => (
+        <div key={i} style={{ display: "flex", gap: 8, marginBottom: 8, alignItems: "center" }}>
+          <input value={block.time} onChange={e => { const n = { ...schedule, morning: [...schedule.morning] }; n.morning[i] = { ...n.morning[i], time: e.target.value }; setSchedule(n); }} placeholder="Time" style={{ ...inputStyle, width: 110, minWidth: 110 }} />
+          <input value={block.activity} onChange={e => { const n = { ...schedule, morning: [...schedule.morning] }; n.morning[i] = { ...n.morning[i], activity: e.target.value }; setSchedule(n); }} placeholder="What you plan to do" style={inputStyle} />
+        </div>
+      ))}
+
+      <Hint style={{ marginTop: 12, marginBottom: 8 }}>Afternoon / Evening</Hint>
+      {schedule.evening.map((block, i) => (
+        <div key={i} style={{ display: "flex", gap: 8, marginBottom: 8, alignItems: "center" }}>
+          <input value={block.time} onChange={e => { const n = { ...schedule, evening: [...schedule.evening] }; n.evening[i] = { ...n.evening[i], time: e.target.value }; setSchedule(n); }} placeholder="Time" style={{ ...inputStyle, width: 110, minWidth: 110 }} />
+          <input value={block.activity} onChange={e => { const n = { ...schedule, evening: [...schedule.evening] }; n.evening[i] = { ...n.evening[i], activity: e.target.value }; setSchedule(n); }} placeholder="What you plan to do" style={inputStyle} />
+        </div>
+      ))}
 
       <Divider />
       <Label>Intention for the day</Label>
       <textarea value={intention} onChange={e => setIntention(e.target.value)} placeholder="What would make today a good day? One sentence is enough." style={{ ...inputStyle, minHeight: 72, resize: "vertical", lineHeight: 1.6 }} />
 
       <div style={{ marginTop: "1.5rem", display: "flex", gap: 8 }}>
-        <button onClick={save} style={primaryBtn}>Save plan →</button>
+        <button onClick={save} style={primaryBtn} disabled={saving}>{saving ? "Saving..." : "Save plan →"}</button>
         <button onClick={clear} style={secondaryBtn}>Clear</button>
       </div>
     </div>
@@ -165,6 +221,8 @@ function CheckinTab({ user }) {
   const [summary, setSummary] = useState("");
   const [loading, setLoading] = useState(false);
 
+  const allTasks = plan ? [...plan.tasks, ...(plan.extraTasks || [])].filter(t => t.trim()) : [];
+
   function setStatus(idx, status) {
     setTaskStatus(prev => ({ ...prev, [idx]: prev[idx] === status ? null : status }));
   }
@@ -174,7 +232,7 @@ function CheckinTab({ user }) {
     setLoading(true);
     setSubmitted(true);
 
-    const statuses = plan.tasks.filter(t => t.trim()).map((t, i) => `${i + 1}. ${t} — ${taskStatus[i] || "not marked"}`).join("\n");
+    const statuses = allTasks.map((t, i) => `${i + 1}. ${t} — ${taskStatus[i] || "not marked"}`).join("\n");
     const goals = (lsGet(`goals_${user}`) || []).map(g => g.title).join(", ") || "none set";
 
     const prompt = `You're helping ${user} stay accountable to their goals. Be direct, warm, honest — like a smart friend who notices patterns. Don't be a cheerleader but don't pile on.
@@ -209,8 +267,8 @@ Keep it tight.`;
       if (sheetsUrl) {
         const row = {
           type: "checkin", user, date: plan.date,
-          tasks: plan.tasks.filter(t => t.trim()).join(" | "),
-          statuses: plan.tasks.filter(t => t.trim()).map((_, i) => taskStatus[i] || "not marked").join(" | "),
+          tasks: allTasks.join(" | "),
+          statuses: allTasks.map((_, i) => taskStatus[i] || "not marked").join(" | "),
           notes, honestTake, claudeFeedback: text,
           timestamp: new Date().toISOString()
         };
@@ -243,7 +301,7 @@ Keep it tight.`;
     <div>
       <p style={{ fontSize: 13, color: "#888", marginBottom: "1.2rem" }}>{plan.date}</p>
       <Label>How did each task go?</Label>
-      {plan.tasks.filter(t => t.trim()).map((t, i) => (
+      {allTasks.map((t, i) => (
         <div key={i} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "10px 0", borderBottom: "0.5px solid #eee" }}>
           <span style={{ fontSize: 14, flex: 1, paddingRight: 12, color: taskStatus[i] === "skipped" ? "#aaa" : "#111", textDecoration: taskStatus[i] === "done" ? "line-through" : "none" }}>{t}</span>
           <div style={{ display: "flex", gap: 6 }}>
@@ -536,6 +594,7 @@ function InfoTab() {
       <Divider />
 
       <Label>Logged to the shared Google Sheet</Label>
+      {row("Plan", "When you click \"Save plan →\", your tasks, schedule, and intention are also sent to the shared sheet so you can both see each other's plans.")}
       {row("Check-in, Weekly, Meeting prep", "When you submit, your inputs and Claude's feedback are sent to the shared sheet you both can see.")}
 
       <Divider />
