@@ -90,7 +90,7 @@ function PlanTab({ user }) {
   useEffect(() => {
     const p = lsGet(key);
     if (p) { setDate(p.date || today()); setTasks(p.tasks || Array(TASK_COUNT).fill("")); setSchedule(p.schedule || []); setIntention(p.intention || ""); setSaved(true); }
-  }, [user]);
+  }, [user, key]);
 
   function save() {
     const filled = tasks.filter(t => t.trim());
@@ -280,7 +280,7 @@ function GoalsTab({ user }) {
   const [newType, setNewType] = useState("life");
   const [newTarget, setNewTarget] = useState("");
 
-  useEffect(() => { setGoals(lsGet(key) || []); }, [user]);
+  useEffect(() => { setGoals(lsGet(key) || []); }, [user, key]);
 
   function add() {
     if (!newTitle.trim()) return;
