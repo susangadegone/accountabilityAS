@@ -23,8 +23,8 @@ function Label({ children }) {
 function Divider() {
   return <hr style={{ border: "none", borderTop: "0.5px solid #eee", margin: "1.5rem 0" }} />;
 }
-function Hint({ children }) {
-  return <p style={{ fontSize: 13, color: "#888", marginBottom: 12 }}>{children}</p>;
+function Hint({ children, style }) {
+  return <p style={{ fontSize: 13, color: "#888", marginBottom: 12, ...style }}>{children}</p>;
 }
 
 export default function App() {
@@ -44,7 +44,7 @@ export default function App() {
       </div>
 
       <div style={{ display: "flex", gap: 4, marginBottom: "1.5rem", flexWrap: "wrap" }}>
-        {[["plan", "Plan"], ["checkin", "Check in"], ["goals", "Goals"], ["weekly", "Weekly"], ["meeting", "Meeting prep"]].map(([key, label]) => (
+        {[["plan", "Plan"], ["checkin", "Check in"], ["goals", "Goals"], ["weekly", "Weekly"], ["meeting", "Meeting prep"], ["info", "Info"]].map(([key, label]) => (
           <button key={key} onClick={() => setTab(key)} style={{
             padding: "6px 14px", fontSize: 13, borderRadius: 8,
             border: "0.5px solid", borderColor: tab === key ? "transparent" : "#ccc",
@@ -60,6 +60,7 @@ export default function App() {
       {tab === "goals" && <GoalsTab user={user} />}
       {tab === "weekly" && <WeeklyTab user={user} />}
       {tab === "meeting" && <MeetingTab user={user} />}
+      {tab === "info" && <InfoTab />}
     </div>
   );
 }
@@ -506,6 +507,45 @@ Be practical and direct.`;
       <textarea value={need} onChange={e => setNeed(e.target.value)} placeholder="Input, a decision, a reality check — be specific." style={{ ...inputStyle, minHeight: 72, resize: "vertical", lineHeight: 1.6, marginBottom: "1.5rem" }} />
 
       <button onClick={submit} style={primaryBtn} disabled={loading}>{loading ? "Building prep..." : "Get meeting prep →"}</button>
+    </div>
+  );
+}
+
+function InfoTab() {
+  const row = (title, children) => (
+    <div style={{ marginBottom: "1.2rem", padding: "10px 12px", border: "0.5px solid #eee", borderRadius: 8, background: "#fafaf9" }}>
+      <p style={{ fontSize: 14, fontWeight: 500, color: "#111", margin: "0 0 4px" }}>{title}</p>
+      <p style={{ fontSize: 13, color: "#666", margin: 0, lineHeight: 1.6 }}>{children}</p>
+    </div>
+  );
+
+  return (
+    <div>
+      <Hint>How saving works in this app — read this if something seems to disappear.</Hint>
+
+      <Label>Saved on this device only</Label>
+      {row("Plan", "Saved when you click \"Save plan →\". Stays until you click Clear or save over it.")}
+      {row("Goals", "Saved instantly when you add or remove a goal — no save button needed.")}
+      {row("Weekly", "Saved automatically when you click \"Get weekly reflection →\".")}
+
+      <Hint style={{ marginTop: "1rem" }}>
+        ⚠️ This data lives in your browser on this device. If you use the app on a different
+        device or browser, you won't see it there — each person's plans/goals are private to them.
+      </Hint>
+
+      <Divider />
+
+      <Label>Logged to the shared Google Sheet</Label>
+      {row("Check-in, Weekly, Meeting prep", "When you submit, your inputs and Claude's feedback are sent to the shared sheet you both can see.")}
+
+      <Divider />
+
+      <Label>What does NOT save</Label>
+      {row("Check-in details", "Notes, honest take, and task statuses are only sent to the Sheet — not saved locally. Clicking \"Edit check-in\" resets these fields.")}
+      {row("Meeting prep inputs", "Only logged to the Sheet — not saved locally.")}
+      {row("Anything you type without clicking the main button", "Navigating away before clicking Save/Submit loses your input (except Goals, which auto-saves).")}
+
+      <Hint style={{ marginTop: "1rem" }}><strong>Rule of thumb:</strong> always click the primary button (Save plan, Get my check-in, etc.) before leaving a tab.</Hint>
     </div>
   );
 }
