@@ -287,6 +287,7 @@ Keep it tight.`;
       <p style={{ fontSize: 13, color: "#888", marginBottom: "1.2rem" }}>{plan.date}</p>
       {loading ? <p style={{ fontSize: 14, color: "#888" }}>Reading your day...</p> : (
         <div>
+          <p style={{ fontSize: 13, color: "#3B6D11", marginBottom: "1rem", padding: "8px 12px", background: "#EAF3DE", borderRadius: 8 }}>Checked in for {plan.date} ✓</p>
           <Label>Your check-in</Label>
           <div style={{ fontSize: 14, lineHeight: 1.8, color: "#222", background: "#f9f9f8", border: "0.5px solid #e5e5e0", borderRadius: 12, padding: "1rem 1.25rem", marginBottom: "1.5rem", whiteSpace: "pre-wrap" }}>{summary}</div>
           <div style={{ display: "flex", gap: 8 }}>
