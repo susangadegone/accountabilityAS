@@ -1,70 +1,108 @@
-# Getting Started with Create React App
+# Daily Accountability Tracker
 
-This project was bootstrapped with [Create React App](https://github.com/facebook/create-react-app).
+A local React app for me and my husband. We can plan our individual day, check in on each others week goals, and most importantly hold each other accountable! 
+Built for personal use. No backend, no hosting, no accounts. The app isn't fancy but we find that it works. I connected a Google Sheets to it so my plan and check-in are remembered. Runs on your computer.
 
-## Available Scripts
+---
 
-In the project directory, you can run:
+## What it does
 
-### `npm start`
+**Plan** — Each day, set your top 5 tasks, a rough schedule, and one intention for the day.
 
-Runs the app in the development mode.\
-Open [http://localhost:3000](http://localhost:3000) to view it in your browser.
+**Check in** — That night or next morning, mark each task Done / Partial / Skipped, add what happened, and get a direct read from Claude on how the day went.
 
-The page will reload when you make changes.\
-You may also see any lint errors in the console.
+**Goals** — Set big life goals and project goals with target dates. These inform your daily check-ins and weekly reflections.
 
-### `npm test`
+**Weekly** — Once a week, answer three questions about what moved, what stalled, and what you're committing to next week. If both people submit, Claude reads them together and gives a joint reflection.
 
-Launches the test runner in the interactive watch mode.\
-See the section about [running tests](https://facebook.github.io/create-react-app/docs/running-tests) for more information.
+**Meeting prep** — Before your 45-min or 30-min weekly meetings, fill in what you want to cover, where you're stuck, and what you need from the other person. Claude builds you an agenda.
 
-### `npm run build`
+**Google Sheets logging** — Every check-in, weekly reflection, and meeting prep automatically logs to a shared Google Sheet so both people can see the full history.
 
-Builds the app for production to the `build` folder.\
-It correctly bundles React in production mode and optimizes the build for the best performance.
+---
 
-The build is minified and the filenames include the hashes.\
-Your app is ready to be deployed!
+## Setup
 
-See the section about [deployment](https://facebook.github.io/create-react-app/docs/deployment) for more information.
+### Requirements
 
-### `npm run eject`
+- [Node.js](https://nodejs.org) (LTS version)
+- An [Anthropic API key](https://console.anthropic.com)
+- A Google account (for Sheets logging)
 
-**Note: this is a one-way operation. Once you `eject`, you can't go back!**
+### Install
 
-If you aren't satisfied with the build tool and configuration choices, you can `eject` at any time. This command will remove the single build dependency from your project.
+```bash
+npx create-react-app daily-accountability
+cd daily-accountability
+```
 
-Instead, it will copy all the configuration files and the transitive dependencies (webpack, Babel, ESLint, etc) right into your project so you have full control over them. All of the commands except `eject` will still work, but they will point to the copied scripts so you can tweak them. At this point you're on your own.
+Replace `src/App.js` with the app code, then open it and update these two lines at the top:
 
-You don't have to ever use `eject`. The curated feature set is suitable for small and middle deployments, and you shouldn't feel obligated to use this feature. However we understand that this tool wouldn't be useful if you couldn't customize it when you are ready for it.
+```javascript
+const SHEETS_URL = "YOUR_GOOGLE_APPS_SCRIPT_URL";
+const ANTHROPIC_API_KEY = "YOUR_API_KEY_HERE";
+```
 
-## Learn More
+Then open `package.json` and add the proxy before the last closing `}`:
 
-You can learn more in the [Create React App documentation](https://facebook.github.io/create-react-app/docs/getting-started).
+```json
+"proxy": "https://api.anthropic.com"
+```
 
-To learn React, check out the [React documentation](https://reactjs.org/).
+### Run
 
-### Code Splitting
+```bash
+npm start
+```
 
-This section has moved here: [https://facebook.github.io/create-react-app/docs/code-splitting](https://facebook.github.io/create-react-app/docs/code-splitting)
+Opens at `http://localhost:3000`.
 
-### Analyzing the Bundle Size
+---
 
-This section has moved here: [https://facebook.github.io/create-react-app/docs/analyzing-the-bundle-size](https://facebook.github.io/create-react-app/docs/analyzing-the-bundle-size)
+## Google Sheets setup
 
-### Making a Progressive Web App
+1. Create a new Google Sheet and share it with both users
+2. In the Sheet, go to **Extensions → Apps Script**
+3. Delete the default code and paste in the contents of `accountability-sheets.gs`
+4. Click **Deploy → New deployment**
+5. Choose **Web app**, set "Execute as" to **Me**, set "Who has access" to **Anyone**
+6. Copy the `/exec` URL and paste it into `SHEETS_URL` in `src/App.js`
 
-This section has moved here: [https://facebook.github.io/create-react-app/docs/making-a-progressive-web-app](https://facebook.github.io/create-react-app/docs/making-a-progressive-web-app)
+The script creates three tabs automatically on first use: **Check-ins**, **Weekly**, and **Meeting Prep**.
 
-### Advanced Configuration
+---
 
-This section has moved here: [https://facebook.github.io/create-react-app/docs/advanced-configuration](https://facebook.github.io/create-react-app/docs/advanced-configuration)
+## Users
 
-### Deployment
+The app is set up for two people. You pick who you are when you open the app. Data is stored separately in `localStorage` by user.
 
-This section has moved here: [https://facebook.github.io/create-react-app/docs/deployment](https://facebook.github.io/create-react-app/docs/deployment)
+To change the names, update this line in `src/App.js`:
 
-### `npm run build` fails to minify
+```javascript
+const USERS = ["Suz", "Aki"];
+```
 
-This section has moved here: [https://facebook.github.io/create-react-app/docs/troubleshooting#npm-run-build-fails-to-minify](https://facebook.github.io/create-react-app/docs/troubleshooting#npm-run-build-fails-to-minify)
+---
+
+## Data
+
+- Plans, goals, and check-ins are stored in `localStorage` — they persist across sessions
+- Everything submitted (check-ins, weeklies, meeting prep) logs to the shared Google Sheet
+- To delete entries, just remove rows directly in the Sheet
+
+
+
+## Files
+
+| File | What it is |
+|------|-----------|
+| `src/App.js` | The full React app |
+| `accountability-sheets.gs` | Google Apps Script for Sheets logging |
+
+---
+
+## Notes
+
+- This is a local dev tool, not a hosted app. Both people run it on their own computers.
+- The Anthropic API key is in the client code — fine for personal local use, not for sharing publicly.
+- Weekly cross-person reflection works by reading both users' `localStorage` on the same machine, or by submitting to the Sheet and reading from there in a future version.
