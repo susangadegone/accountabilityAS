@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 
 const TASK_COUNT = 5;
 const USERS = ["Suz", "Aki"];
-const SHEETS_URL = "https://script.google.com/macros/s/AKfycbx-IM-Ag8mUtQRAuQRyEda_K1JFT1r1T3dw8i2nmSakzrQnnb8ZW4FqJ45SF3nqQP426g/exec";
+const SHEETS_URL = "https://script.google.com/macros/s/AKfycbz3a1nt-Gdc46MdePX3Po2W1viPeKemjL6PdeDN-bq_9Glgzl3VFTGWfglSVouvroWnuQ/exec";
 const STATUS_LABELS = { done: "Done", partial: "Partial", skipped: "Skipped" };
 
 function today() {
