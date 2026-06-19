@@ -342,18 +342,31 @@ function GoalsTab({ user }) {
 
   useEffect(() => { setGoals(lsGet(key) || []); }, [user, key]);
 
+  function syncToSheet(action, goal) {
+    const row = {
+      type: "goal", user, date: today(),
+      action, title: goal.title, goalType: goal.type, target: goal.target,
+      timestamp: new Date().toISOString()
+    };
+    fetch(SHEETS_URL + "?data=" + encodeURIComponent(JSON.stringify(row)), { method: "GET", mode: "no-cors" }).catch(() => {});
+  }
+
   function add() {
     if (!newTitle.trim()) return;
-    const updated = [...goals, { id: Date.now(), title: newTitle.trim(), type: newType, target: newTarget.trim(), created: today() }];
+    const goal = { id: Date.now(), title: newTitle.trim(), type: newType, target: newTarget.trim(), created: today() };
+    const updated = [...goals, goal];
     setGoals(updated);
     lsSet(key, updated);
+    syncToSheet("Added", goal);
     setNewTitle(""); setNewTarget("");
   }
 
   function remove(id) {
+    const goal = goals.find(g => g.id === id);
     const updated = goals.filter(g => g.id !== id);
     setGoals(updated);
     lsSet(key, updated);
+    if (goal) syncToSheet("Removed", goal);
   }
 
   return (
@@ -366,7 +379,7 @@ function GoalsTab({ user }) {
             <div key={g.id} style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", padding: "10px 12px", border: "0.5px solid #eee", borderRadius: 8, marginBottom: 8, background: "#fafaf9" }}>
               <div>
                 <p style={{ fontSize: 14, fontWeight: 500, color: "#111", margin: "0 0 2px" }}>{g.title}</p>
-                <p style={{ fontSize: 12, color: "#aaa", margin: 0 }}>{g.type === "life" ? "Life goal" : "Project"}{g.target ? ` · Target: ${g.target}` : ""}</p>
+                <p style={{ fontSize: 12, color: "#aaa", margin: 0 }}>{g.type === "life" ? "Life goal" : g.type === "weekly" ? "Weekly goal" : "Project"}{g.target ? ` · Target: ${g.target}` : ""}</p>
               </div>
               <button onClick={() => remove(g.id)} style={{ background: "none", border: "none", cursor: "pointer", color: "#ccc", fontSize: 18, padding: "0 4px" }}>×</button>
             </div>
@@ -380,6 +393,7 @@ function GoalsTab({ user }) {
       <div style={{ display: "flex", gap: 8, marginBottom: 8 }}>
         <select value={newType} onChange={e => setNewType(e.target.value)} style={{ ...inputStyle, width: 160 }}>
           <option value="life">Life goal</option>
+          <option value="weekly">Weekly goal</option>
           <option value="project">Project</option>
         </select>
         <input value={newTarget} onChange={e => setNewTarget(e.target.value)} placeholder="Target date (optional)" style={inputStyle} />

@@ -15,6 +15,7 @@ function doGet(e) {
     if (data.type === "weekly") sheetName = "Weekly";
     if (data.type === "meeting_prep") sheetName = "Meeting Prep";
     if (data.type === "plan") sheetName = "Plans";
+    if (data.type === "goal") sheetName = "Goals";
 
     var sheet = ss.getSheetByName(sheetName);
     if (!sheet) {
@@ -80,6 +81,16 @@ function addHeaders(sheet, type) {
       "Schedule",
       "Intention"
     ];
+  } else if (type === "goal") {
+    headers = [
+      "Timestamp",
+      "Date",
+      "User",
+      "Action",
+      "Goal",
+      "Goal Type",
+      "Target"
+    ];
   }
 
   sheet.appendRow(headers);
@@ -135,6 +146,18 @@ function buildRow(data) {
       data.tasks,
       data.schedule,
       data.intention
+    ];
+  }
+
+  if (data.type === "goal") {
+    return [
+      ts,
+      data.date,
+      data.user,
+      data.action,
+      data.title,
+      data.goalType,
+      data.target
     ];
   }
 
