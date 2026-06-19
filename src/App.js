@@ -339,6 +339,7 @@ function GoalsTab({ user }) {
   const [newTitle, setNewTitle] = useState("");
   const [newType, setNewType] = useState("life");
   const [newTarget, setNewTarget] = useState("");
+  const [synced, setSynced] = useState(false);
 
   useEffect(() => { setGoals(lsGet(key) || []); }, [user, key]);
 
@@ -369,12 +370,21 @@ function GoalsTab({ user }) {
     if (goal) syncToSheet("Removed", goal);
   }
 
+  function syncAll() {
+    if (!goals.length) return;
+    goals.forEach(g => syncToSheet("Added", g));
+    setSynced(true);
+  }
+
   return (
     <div>
       <Hint>Set your big goals here. These inform your daily tasks and weekly check-ins.</Hint>
 
       {goals.length > 0 && (
         <div style={{ marginBottom: "1.5rem" }}>
+          <div style={{ display: "flex", justifyContent: "flex-end", marginBottom: 8 }}>
+            <button onClick={syncAll} style={secondaryBtn}>{synced ? "Synced ✓" : "Sync to Sheet"}</button>
+          </div>
           {goals.map(g => (
             <div key={g.id} style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", padding: "10px 12px", border: "0.5px solid #eee", borderRadius: 8, marginBottom: 8, background: "#fafaf9" }}>
               <div>
