@@ -9,6 +9,15 @@ function today() {
   return new Date().toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric" });
 }
 
+function todayISO() {
+  return new Date().toISOString().slice(0, 10);
+}
+
+function humanDate(isoStr) {
+  const [y, m, d] = isoStr.split("-").map(Number);
+  return new Date(y, m - 1, d).toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric" });
+}
+
 function lsGet(key) { try { return JSON.parse(localStorage.getItem(key)); } catch { return null; } }
 function lsSet(key, val) { try { localStorage.setItem(key, JSON.stringify(val)); } catch {} }
 function lsDel(key) { try { localStorage.removeItem(key); } catch {} }
@@ -88,8 +97,8 @@ function emptySchedule() {
 }
 
 function PlanTab({ user }) {
-  const key = `plan_${user}`;
-  const [date, setDate] = useState(today());
+  const [dateKey, setDateKey] = useState(todayISO());
+  const key = `plan_${user}_${dateKey}`;
   const [tasks, setTasks] = useState(Array(TASK_COUNT).fill(""));
   const [extraTasks, setExtraTasks] = useState([]);
   const [schedule, setSchedule] = useState(emptySchedule());
@@ -99,20 +108,36 @@ function PlanTab({ user }) {
   const goals = lsGet(`goals_${user}`) || [];
 
   useEffect(() => {
+    const legacyKey = `plan_${user}`;
+    const legacy = lsGet(legacyKey);
+    if (legacy) {
+      const targetKey = `plan_${user}_${todayISO()}`;
+      if (!lsGet(targetKey)) lsSet(targetKey, legacy);
+      lsDel(legacyKey);
+    }
+  }, [user]);
+
+  useEffect(() => {
     const p = lsGet(key);
     if (p) {
-      setDate(p.date || today());
       setTasks(p.tasks || Array(TASK_COUNT).fill(""));
       setExtraTasks(p.extraTasks || []);
       setSchedule(p.schedule && p.schedule.morning && p.schedule.evening ? p.schedule : emptySchedule());
       setIntention(p.intention || "");
       setSaved(true);
+    } else {
+      setTasks(Array(TASK_COUNT).fill(""));
+      setExtraTasks([]);
+      setSchedule(emptySchedule());
+      setIntention("");
+      setSaved(false);
     }
   }, [user, key]);
 
   async function save() {
     const filled = tasks.filter(t => t.trim());
     if (!filled.length) return alert("Add at least one task.");
+    const date = humanDate(dateKey);
     const plan = { date, tasks, extraTasks, schedule, intention };
     lsSet(key, plan);
     setSaved(true);
@@ -142,15 +167,17 @@ function PlanTab({ user }) {
     setExtraTasks([]);
     setSchedule(emptySchedule());
     setIntention("");
-    setDate(today());
     setSaved(false);
   }
 
   return (
     <div>
-      {saved && <p style={{ fontSize: 13, color: "#3B6D11", marginBottom: "1rem", padding: "8px 12px", background: "#EAF3DE", borderRadius: 8 }}>Plan saved for {date}</p>}
+      {saved && <p style={{ fontSize: 13, color: "#3B6D11", marginBottom: "1rem", padding: "8px 12px", background: "#EAF3DE", borderRadius: 8 }}>Plan saved for {humanDate(dateKey)}</p>}
       <Label>Date</Label>
-      <input value={date} onChange={e => setDate(e.target.value)} style={{ ...inputStyle, marginBottom: "1.5rem" }} />
+      <div style={{ display: "flex", gap: 8, marginBottom: "1.5rem" }}>
+        <input type="date" value={dateKey} onChange={e => setDateKey(e.target.value)} style={inputStyle} />
+        {dateKey !== todayISO() && <button onClick={() => setDateKey(todayISO())} style={secondaryBtn}>Today</button>}
+      </div>
 
       <Divider />
       <Label>Top 5 tasks for today</Label>
@@ -212,7 +239,7 @@ function PlanTab({ user }) {
 }
 
 function CheckinTab({ user }) {
-  const planKey = `plan_${user}`;
+  const planKey = `plan_${user}_${todayISO()}`;
   const plan = lsGet(planKey);
   const [taskStatus, setTaskStatus] = useState({});
   const [notes, setNotes] = useState("");
@@ -619,7 +646,7 @@ function InfoTab() {
       <Hint>How saving works in this app — read this if something seems to disappear.</Hint>
 
       <Label>Saved on this device only</Label>
-      {row("Plan", "Saved when you click \"Save plan →\". Stays until you click Clear or save over it.")}
+      {row("Plan", "Saved per date when you click \"Save plan →\". Each date keeps its own plan — switching the date picker won't lose other days. Check-in only looks at today's plan.")}
       {row("Goals", "Saved instantly when you add or remove a goal — no save button needed.")}
       {row("Weekly", "Saved automatically when you click \"Get weekly reflection →\".")}
 
