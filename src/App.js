@@ -414,8 +414,10 @@ function GoalsTab({ user }) {
 }
 
 function WeeklyTab({ user }) {
-  const [moved, setMoved] = useState("");
-  const [stalled, setStalled] = useState("");
+  const [movedGoal, setMovedGoal] = useState("");
+  const [movedDetail, setMovedDetail] = useState("");
+  const [stalledGoal, setStalledGoal] = useState("");
+  const [stalledDetail, setStalledDetail] = useState("");
   const [commitment, setCommitment] = useState("");
   const [submitted, setSubmitted] = useState(false);
   const [summary, setSummary] = useState("");
@@ -425,6 +427,8 @@ function WeeklyTab({ user }) {
   const otherWeekly = lsGet(`weekly_${otherUser}`);
 
   async function submit() {
+    const moved = movedGoal ? `${movedGoal}: ${movedDetail}` : movedDetail;
+    const stalled = stalledGoal ? `${stalledGoal}: ${stalledDetail}` : stalledDetail;
     if (!moved.trim()) return alert("Fill in at least the first field.");
     setLoading(true);
     setSubmitted(true);
@@ -487,10 +491,18 @@ Keep it honest and tight.`;
       {otherWeekly && <p style={{ fontSize: 13, color: "#3B6D11", padding: "8px 12px", background: "#EAF3DE", borderRadius: 8, marginBottom: "1.2rem" }}>{otherUser} already submitted their weekly. Claude will read both together. ✓</p>}
 
       <Label>Which goal moved forward this week?</Label>
-      <textarea value={moved} onChange={e => setMoved(e.target.value)} placeholder="What actually progressed?" style={{ ...inputStyle, minHeight: 72, resize: "vertical", lineHeight: 1.6, marginBottom: "1.5rem" }} />
+      <select value={movedGoal} onChange={e => setMovedGoal(e.target.value)} style={{ ...inputStyle, marginBottom: 8 }}>
+        <option value="">No specific goal</option>
+        {goals.map(g => <option key={g.id} value={g.title}>{g.title}</option>)}
+      </select>
+      <textarea value={movedDetail} onChange={e => setMovedDetail(e.target.value)} placeholder="What actually progressed?" style={{ ...inputStyle, minHeight: 72, resize: "vertical", lineHeight: 1.6, marginBottom: "1.5rem" }} />
 
       <Label>Which goal stalled?</Label>
-      <textarea value={stalled} onChange={e => setStalled(e.target.value)} placeholder="What didn't move, and why?" style={{ ...inputStyle, minHeight: 72, resize: "vertical", lineHeight: 1.6, marginBottom: "1.5rem" }} />
+      <select value={stalledGoal} onChange={e => setStalledGoal(e.target.value)} style={{ ...inputStyle, marginBottom: 8 }}>
+        <option value="">No specific goal</option>
+        {goals.map(g => <option key={g.id} value={g.title}>{g.title}</option>)}
+      </select>
+      <textarea value={stalledDetail} onChange={e => setStalledDetail(e.target.value)} placeholder="What didn't move, and why?" style={{ ...inputStyle, minHeight: 72, resize: "vertical", lineHeight: 1.6, marginBottom: "1.5rem" }} />
 
       <Label>What are you committing to next week?</Label>
       <textarea value={commitment} onChange={e => setCommitment(e.target.value)} placeholder="One concrete thing." style={{ ...inputStyle, minHeight: 72, resize: "vertical", lineHeight: 1.6, marginBottom: "1.5rem" }} />
