@@ -2,7 +2,6 @@ import { useState, useEffect } from "react";
 
 const TASK_COUNT = 5;
 const USERS = ["Suz", "Aki"];
-const SHEETS_URL = "https://script.google.com/macros/s/AKfycbz3a1nt-Gdc46MdePX3Po2W1viPeKemjL6PdeDN-bq_9Glgzl3VFTGWfglSVouvroWnuQ/exec";
 const STATUS_LABELS = { done: "Done", partial: "Partial", skipped: "Skipped" };
 
 function today() {
@@ -22,6 +21,19 @@ function lsGet(key) { try { return JSON.parse(localStorage.getItem(key)); } catc
 function lsSet(key, val) { try { localStorage.setItem(key, JSON.stringify(val)); } catch {} }
 function lsDel(key) { try { localStorage.removeItem(key); } catch {} }
 
+async function apiFetch(url, options = {}) {
+  const password = localStorage.getItem("app_password");
+  const res = await fetch(url, {
+    ...options,
+    headers: { ...(options.headers || {}), ...(password ? { "x-app-password": password } : {}) },
+  });
+  if (res.status === 401) {
+    lsDel("app_password");
+    window.location.reload();
+  }
+  return res;
+}
+
 const inputStyle = { width: "100%", padding: "8px 12px", fontSize: 14, border: "0.5px solid #ccc", borderRadius: 8, color: "#111", fontFamily: "inherit", background: "#fff" };
 const primaryBtn = { padding: "9px 20px", fontSize: 14, fontWeight: 500, borderRadius: 8, background: "#111", color: "#fff", border: "none", cursor: "pointer", fontFamily: "inherit" };
 const secondaryBtn = { padding: "7px 16px", fontSize: 13, borderRadius: 8, border: "0.5px solid #ccc", background: "transparent", color: "#555", cursor: "pointer", fontFamily: "inherit" };
@@ -37,9 +49,11 @@ function Hint({ children, style }) {
 }
 
 export default function App() {
+  const [authed, setAuthed] = useState(!!localStorage.getItem("app_password"));
   const [user, setUser] = useState(null);
   const [tab, setTab] = useState("plan");
 
+  if (!authed) return <LoginGate onSuccess={() => setAuthed(true)} />;
   if (!user) return <UserSelect onSelect={setUser} />;
 
   return (
@@ -70,6 +84,49 @@ export default function App() {
       {tab === "weekly" && <WeeklyTab user={user} />}
       {tab === "meeting" && <MeetingTab user={user} />}
       {tab === "info" && <InfoTab />}
+    </div>
+  );
+}
+
+function LoginGate({ onSuccess }) {
+  const [password, setPassword] = useState("");
+  const [error, setError] = useState("");
+  const [loading, setLoading] = useState(false);
+
+  async function submit(e) {
+    e.preventDefault();
+    setLoading(true);
+    setError("");
+    try {
+      const res = await fetch("/api/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ password }),
+      });
+      if (res.ok) {
+        localStorage.setItem("app_password", password);
+        onSuccess();
+      } else {
+        setError("Wrong password.");
+      }
+    } catch {
+      setError("Couldn't connect. Try again.");
+    }
+    setLoading(false);
+  }
+
+  return (
+    <div style={{ maxWidth: 360, margin: "20vh auto 0", padding: "0 1.5rem", fontFamily: "sans-serif" }}>
+      <h2 style={{ fontSize: 20, fontWeight: 500, color: "#111", marginBottom: "1.2rem" }}>Daily accountability</h2>
+      <form onSubmit={submit}>
+        <Label>Password</Label>
+        <input
+          type="password" value={password} onChange={e => setPassword(e.target.value)}
+          style={{ ...inputStyle, marginBottom: 12 }} autoFocus
+        />
+        {error && <p style={{ color: "#991b1b", fontSize: 13, marginBottom: 12 }}>{error}</p>}
+        <button type="submit" style={primaryBtn} disabled={loading}>{loading ? "Checking..." : "Enter →"}</button>
+      </form>
     </div>
   );
 }
@@ -156,7 +213,7 @@ function PlanTab({ user }) {
       intention,
       timestamp: new Date().toISOString()
     };
-    await fetch(SHEETS_URL + "?data=" + encodeURIComponent(JSON.stringify(row)), { method: "GET", mode: "no-cors" }).catch(() => {});
+    await apiFetch("/api/sheets?data=" + encodeURIComponent(JSON.stringify(row))).catch(() => {});
     setSaving(false);
     alert("Plan saved!");
   }
@@ -281,7 +338,7 @@ Give:
 Keep it tight.`;
 
     try {
-      const res = await fetch("/api/claude", {
+      const res = await apiFetch("/api/claude", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ prompt, max_tokens: 1000 }),
@@ -290,17 +347,14 @@ Keep it tight.`;
       const text = data.content?.map(b => b.text || "").join("\n") || "No response.";
       setSummary(text);
 
-      const sheetsUrl = SHEETS_URL;
-      if (sheetsUrl) {
-        const row = {
-          type: "checkin", user, date: plan.date,
-          tasks: allTasks.join(" | "),
-          statuses: allTasks.map((_, i) => taskStatus[i] || "not marked").join(" | "),
-          notes, honestTake, claudeFeedback: text,
-          timestamp: new Date().toISOString()
-        };
-        await fetch(sheetsUrl + "?data=" + encodeURIComponent(JSON.stringify(row)), { method: "GET", mode: "no-cors" }).catch(() => {});
-      }
+      const row = {
+        type: "checkin", user, date: plan.date,
+        tasks: allTasks.join(" | "),
+        statuses: allTasks.map((_, i) => taskStatus[i] || "not marked").join(" | "),
+        notes, honestTake, claudeFeedback: text,
+        timestamp: new Date().toISOString()
+      };
+      await apiFetch("/api/sheets?data=" + encodeURIComponent(JSON.stringify(row))).catch(() => {});
     } catch (e) {
       setSummary("Couldn't connect. Try again.");
     }
@@ -376,7 +430,7 @@ function GoalsTab({ user }) {
       action, title: goal.title, goalType: goal.type, target: goal.target,
       timestamp: new Date().toISOString()
     };
-    fetch(SHEETS_URL + "?data=" + encodeURIComponent(JSON.stringify(row)), { method: "GET", mode: "no-cors" }).catch(() => {});
+    apiFetch("/api/sheets?data=" + encodeURIComponent(JSON.stringify(row))).catch(() => {});
   }
 
   function add() {
@@ -480,7 +534,7 @@ ${otherWeekly ? `2. One observation about how both people are doing together\n3.
 Keep it honest and tight.`;
 
     try {
-      const res = await fetch("/api/claude", {
+      const res = await apiFetch("/api/claude", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ prompt, max_tokens: 1000 }),
@@ -489,10 +543,7 @@ Keep it honest and tight.`;
       const text = data.content?.map(b => b.text || "").join("\n") || "No response.";
       setSummary(text);
 
-      const sheetsUrl = SHEETS_URL;
-      if (sheetsUrl) {
-        await fetch(sheetsUrl + "?data=" + encodeURIComponent(JSON.stringify({ type: "weekly", user, date: today(), moved, stalled, commitment, claudeFeedback: text, timestamp: new Date().toISOString() })), { method: "GET", mode: "no-cors" }).catch(() => {});
-      }
+      await apiFetch("/api/sheets?data=" + encodeURIComponent(JSON.stringify({ type: "weekly", user, date: today(), moved, stalled, commitment, claudeFeedback: text, timestamp: new Date().toISOString() }))).catch(() => {});
     } catch (e) {
       setSummary("Couldn't connect. Try again.");
     }
@@ -571,7 +622,7 @@ Give:
 Be practical and direct.`;
 
     try {
-      const res = await fetch("/api/claude", {
+      const res = await apiFetch("/api/claude", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ prompt, max_tokens: 1000 }),
@@ -580,10 +631,7 @@ Be practical and direct.`;
       const text = data.content?.map(b => b.text || "").join("\n") || "No response.";
       setSummary(text);
 
-      const sheetsUrl = SHEETS_URL;
-      if (sheetsUrl) {
-        await fetch(sheetsUrl + "?data=" + encodeURIComponent(JSON.stringify({ type: "meeting_prep", user, date: today(), meetingType, cover, stuck, need, claudeFeedback: text, timestamp: new Date().toISOString() })), { method: "GET", mode: "no-cors" }).catch(() => {});
-      }
+      await apiFetch("/api/sheets?data=" + encodeURIComponent(JSON.stringify({ type: "meeting_prep", user, date: today(), meetingType, cover, stuck, need, claudeFeedback: text, timestamp: new Date().toISOString() }))).catch(() => {});
     } catch (e) {
       setSummary("Couldn't connect. Try again.");
     }

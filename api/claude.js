@@ -3,6 +3,10 @@ module.exports = async (req, res) => {
     return res.status(405).json({ error: "Method not allowed" });
   }
 
+  if (!process.env.APP_PASSWORD || req.headers["x-app-password"] !== process.env.APP_PASSWORD) {
+    return res.status(401).json({ error: "Unauthorized" });
+  }
+
   const { prompt, max_tokens } = req.body || {};
   if (!prompt) return res.status(400).json({ error: "Missing prompt" });
 
