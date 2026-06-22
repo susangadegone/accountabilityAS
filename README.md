@@ -28,6 +28,22 @@ A small React app for two people to plan their day, check in on progress, and ho
 
 ---
 
+## Screenshots
+
+**Plan** — set your top 5 tasks for the day:
+
+![Plan tab](screenshots/plan.png)
+
+Schedule and daily intention:
+
+![Plan tab schedule and intention](screenshots/plan-schedule.png)
+
+**Goals** — set life goals and project goals with target dates:
+
+![Goals tab](screenshots/goals.png)
+
+---
+
 ## Files
 
 | File | What it is |
